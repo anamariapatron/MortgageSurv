@@ -178,7 +178,7 @@ simLMPH <- function(seed, x, Betas, Thetas, LMs, dist = "W") {
 #' str(sim)
 #' }
 #'
-#' @importFrom lubridate as_date days years weeks months interval
+#' @importFrom lubridate as_date days years weeks interval
 #' @importFrom truncnorm rtruncnorm
 #' @export
 simulate_mortgage_data <- function(n            = 1000L,
@@ -267,7 +267,7 @@ simulate_mortgage_data <- function(n            = 1000L,
     obsdate_matrix[, i] <- obs_dates
 
     months_elapsed <- lubridate::interval(credit_start_dates, obs_dates) %/%
-                        lubridate::months(1)
+                        base::months(1)
     status_vals        <- as.integer(months_elapsed >= sim_times)
     status_vals[!alive] <- NA
     status_matrix[, i] <- status_vals
@@ -386,7 +386,7 @@ plot_death_times <- function(time_matrix, status_matrix) {
 #'
 #' @importFrom ggplot2 ggplot aes geom_rect geom_point geom_vline geom_text
 #'   scale_x_date labs theme_minimal theme element_text guides
-#' @importFrom lubridate floor_date ceiling_date months
+#' @importFrom lubridate floor_date ceiling_date "%m+%"
 #' @export
 plot_default_dates <- function(obsdate_matrix,
                                status_matrix,
@@ -405,9 +405,9 @@ plot_default_dates <- function(obsdate_matrix,
     by = "3 months"
   )
   quarters <- data.frame(start = quarter_starts,
-                         end   = quarter_starts + lubridate::months(3))
+                         end   = quarter_starts + base::months(3))
 
-  mean_dates <- LM_start_date %m+% lubridate::months(LMs)
+  mean_dates <- LM_start_date %m+% base::months(LMs)
   labels_df  <- data.frame(
     mean_dates = mean_dates,
     label      = paste0("t", seq_along(mean_dates))

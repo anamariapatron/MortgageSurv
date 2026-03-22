@@ -28,8 +28,8 @@
 #'   \code{x1}–\code{x4}, \code{obs_date}, \code{obs_time},
 #'   \code{month_final}, \code{event_time}, \code{event_status}.
 #'
-#' @importFrom lubridate interval months
-#' @importFrom dplyr group_by mutate ungroup filter if_else any
+#' @importFrom lubridate interval
+#' @importFrom dplyr group_by mutate ungroup filter if_else
 #' @export
 prepare_landmark_data <- function(time_matrix,
                                   status_matrix,
@@ -184,7 +184,7 @@ fit_landmark_model <- function(df_long,
 #' }
 #'
 #' @importFrom ggplot2 ggplot aes geom_point geom_line labs theme_minimal
-#' @importFrom dplyr filter bind_rows
+#' @importFrom dplyr filter
 #' @export
 plot_cumulative_hazard <- function(landmark_model, person_id = 1L) {
   LMs <- names(landmark_model)

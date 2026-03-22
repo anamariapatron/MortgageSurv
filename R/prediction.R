@@ -79,7 +79,8 @@ predict_risk_aft <- function(fit, newdata, landmarks) {
 #'
 #' @return Invisible \code{NULL}. Draws to the active graphics device.
 #'
-#' @importFrom graphics par plot polygon lines density
+#' @importFrom graphics par plot polygon lines
+#' @importFrom stats density
 #' @importFrom grDevices adjustcolor
 #' @export
 plot_landmark_densities <- function(landmark_model,
@@ -119,7 +120,8 @@ plot_landmark_densities <- function(landmark_model,
 #'
 #' @return Invisible \code{NULL}. Draws to the active graphics device.
 #'
-#' @importFrom graphics par plot lines density
+#' @importFrom graphics par plot lines
+#' @importFrom stats density
 #' @export
 plot_aft_densities <- function(risk_list_aft,
                                 landmarks = c(54, 56, 58, 60, 62, 64)) {
