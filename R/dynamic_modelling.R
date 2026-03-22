@@ -72,21 +72,34 @@ prepare_landmark_data <- function(time_matrix,
   # Remove rows where individual has already defaulted (NA status)
   df_long <- df_long[!is.na(df_long$status_raw), ]
 
-  # Compute per-individual event time (first default) and status flag
-  df_long <- df_long |>
-    (\(d) {
-      split_d <- split(d, d$id)
-      lapply(split_d, function(sub) {
-        if (any(sub$status_raw == 1)) {
-          sub$event_time   <- sub$time_raw[sub$status_raw == 1][1]
-          sub$event_status <- 1L
-        } else {
-          sub$event_time   <- max(sub$time_raw, na.rm = TRUE)
-          sub$event_status <- 0L
-        }
-        sub
-      }) |> do.call(what = rbind)
-    })()
+  # Remove rows where time_raw is NA or non-finite
+  df_long <- df_long[!is.na(df_long$time_raw) & is.finite(df_long$time_raw), ]
+
+  # Compute per-individual event time and status
+  # event_status must only be 0 or 1 — Landmarking does not accept NAs
+  df_long <- (function(d) {
+    split_d <- split(d, d$id)
+    result  <- lapply(split_d, function(sub) {
+      has_event <- any(!is.na(sub$status_raw) & sub$status_raw == 1)
+      if (has_event) {
+        first_t          <- sub$time_raw[!is.na(sub$status_raw) & sub$status_raw == 1][1]
+        sub$event_time   <- first_t
+        sub$event_status <- 1L
+      } else {
+        valid_t          <- sub$time_raw[is.finite(sub$time_raw)]
+        sub$event_time   <- if (length(valid_t) > 0) max(valid_t) else NA_real_
+        sub$event_status <- 0L
+      }
+      sub
+    })
+    do.call(rbind, result)
+  })(df_long)
+
+  # Final safety: drop rows with NA event_time or invalid event_status
+  df_long <- df_long[
+    !is.na(df_long$event_time) &
+    !is.na(df_long$event_status) &
+    df_long$event_status %in% c(0L, 1L), ]
 
   rownames(df_long) <- NULL
   df_long
