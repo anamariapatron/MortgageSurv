@@ -1,0 +1,31 @@
+Package: MortgageSurv
+Title: Survival Analysis Models for Mortgage Default Prediction
+Version: 0.1.0
+Authors@R: 
+    person("Author", "Name", email = "author@example.com", role = c("aut", "cre"))
+Description: Adapts survival analysis models originally developed in biostatistics
+    to the context of the UK mortgage market. Provides tools for simulating mortgage
+    loan data under a landmark Proportional Hazards Weibull framework, fitting
+    dynamic landmarking models (LOCF), and comparing predicted default probabilities
+    from Accelerated Failure Time (AFT) and Landmarking approaches. The event of
+    interest is mortgage default, reinterpreting classical survival concepts within
+    a credit risk context.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    lubridate,
+    truncnorm,
+    ggplot2,
+    dplyr,
+    survival,
+    Landmarking,
+    eha,
+    flexsurv,
+    tidyr,
+    stats,
+    graphics
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
