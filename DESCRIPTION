@@ -2,7 +2,10 @@ Package: MortgageSurv
 Title: Survival Analysis Models for Mortgage Default Prediction
 Version: 0.1.0
 Authors@R: 
-    person("Author", "Name", email = "author@example.com", role = c("aut", "cre"))
+    person("Ana M", "Patrón Piñerez",
+           email = "ana.patron@example.com",
+           role  = c("aut", "cre"),
+           comment = c(ORCID = ""))
 Description: Adapts survival analysis models originally developed in biostatistics
     to the context of the UK mortgage market. Provides tools for simulating mortgage
     loan data under a landmark Proportional Hazards Weibull framework, fitting

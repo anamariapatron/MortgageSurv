@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MortgageSurv · Usage Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#0d1117;--paper:#f7f3ed;--cream:#ede8de;--rust:#bf3a2b;
+    --forest:#1a6b3c;--gold:#b07d10;--slate:#4a5568;--muted:#8a8070;
+    --code-bg:#161b22;--code-fg:#e6edf3;--border:#21262d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;line-height:1.7;font-size:15px;}
+  .hero{background:var(--ink);color:var(--paper);padding:4.5rem 2rem 3.5rem;position:relative;overflow:hidden;}
+  .hero::before{content:'';position:absolute;top:-80px;right:-80px;width:400px;height:400px;border-radius:50%;border:70px solid rgba(191,58,43,.12);pointer-events:none;}
+  .hero::after{content:'';position:absolute;bottom:-50px;left:8%;width:220px;height:220px;border-radius:50%;border:50px solid rgba(26,107,60,.1);pointer-events:none;}
+  .hero-inner{max-width:900px;margin:0 auto;position:relative;z-index:1;}
+  .badge{display:inline-block;background:var(--rust);color:#fff;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;padding:.3rem .9rem;border-radius:2px;margin-bottom:1.4rem;}
+  .hero h1{font-family:'Instrument Serif',serif;font-size:clamp(2.8rem,6vw,4.5rem);line-height:1.05;margin-bottom:1rem;}
+  .hero h1 em{color:var(--rust);font-style:italic;}
+  .hero .subtitle{font-size:1rem;color:#9a9080;max-width:560px;line-height:1.65;margin-bottom:1.8rem;}
+  .author-line{font-family:'Instrument Serif',serif;font-style:italic;color:#6a6058;font-size:.95rem;}
+  .outer{max-width:900px;margin:0 auto;padding:0 2rem;}
+  .selector-bar{position:sticky;top:0;z-index:200;background:var(--ink);padding:1rem 2rem;display:flex;align-items:center;gap:1.5rem;border-bottom:1px solid #1e2433;}
+  .selector-label{font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#5a6070;white-space:nowrap;}
+  .path-tabs{display:flex;gap:4px;}
+  .path-tab{padding:.5rem 1.3rem;border-radius:4px;border:1px solid transparent;font-family:'DM Mono',monospace;font-size:.78rem;cursor:pointer;transition:all .18s;color:#636e80;background:transparent;letter-spacing:.04em;}
+  .path-tab.active-sim{background:#1e3a4a;border-color:#2e6a8a;color:#7ec8e3;}
+  .path-tab.active-real{background:#1e3a2e;border-color:#2e6a4a;color:#7ed3a0;}
+  .path-tab:not(.active-sim):not(.active-real):hover{color:var(--paper);border-color:#2e3448;}
+  body[data-mode="real"] .sim-only{display:none;}
+  body[data-mode="sim"] .real-only{display:none;}
+  .diff-box{display:grid;grid-template-columns:1fr 1fr;gap:1px;border-radius:8px;overflow:hidden;border:1px solid var(--cream);margin:2rem 0;}
+  .diff-side{padding:1.5rem 1.6rem;background:var(--cream);}
+  .diff-side h3{font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.8rem;}
+  .diff-side.sim-side h3{color:#2e6a8a;}
+  .diff-side.real-side h3{color:#2e6a4a;}
+  .diff-side ul{list-style:none;}
+  .diff-side ul li{font-size:.88rem;color:var(--slate);padding:.3rem 0;border-bottom:1px solid rgba(0,0,0,.06);display:flex;gap:.5rem;align-items:flex-start;}
+  .diff-side ul li:last-child{border-bottom:none;}
+  .diff-side ul li::before{content:'→';color:var(--muted);flex-shrink:0;}
+  .diff-side ul li.check::before{content:'✓';color:var(--forest);}
+  .diff-side ul li.cross::before{content:'✗';color:var(--rust);}
+  .section{padding:3rem 0 2.5rem;border-bottom:1px solid var(--cream);}
+  .section:last-child{border-bottom:none;}
+  .step-pill{display:inline-flex;align-items:center;gap:.5rem;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--rust);margin-bottom:.6rem;}
+  .step-pill span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--rust);color:#fff;font-size:.6rem;}
+  .section h2{font-family:'Instrument Serif',serif;font-size:1.9rem;margin-bottom:.7rem;}
+  .section>.intro,.intro{color:var(--slate);margin-bottom:1.4rem;max-width:640px;}
+  .code-wrap{background:var(--code-bg);border-radius:8px;overflow:hidden;margin:1rem 0 1.6rem;border:1px solid var(--border);box-shadow:0 6px 28px rgba(0,0,0,.22);}
+  .code-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:#0d1117;border-bottom:1px solid var(--border);}
+  .code-lang{font-family:'DM Mono',monospace;font-size:.65rem;color:#484f58;letter-spacing:.1em;text-transform:uppercase;}
+  .copy-btn{background:#21262d;border:none;color:#848d97;font-family:'DM Mono',monospace;font-size:.68rem;padding:.22rem .7rem;border-radius:3px;cursor:pointer;transition:all .15s;}
+  .copy-btn:hover{background:var(--rust);color:#fff;}
+  .copy-btn.ok{background:var(--forest);color:#fff;}
+  pre{padding:1.3rem 1.5rem;overflow-x:auto;font-family:'DM Mono',monospace;font-size:.8rem;line-height:1.8;color:var(--code-fg);}
+  .kw{color:#ff7b72;}.fn{color:#79c0ff;}.st{color:#a5d6ff;}.cm{color:#484f58;font-style:italic;}.nb{color:#ffa657;}.op{color:#e6edf3;}.arg{color:#d2a8ff;}
+  .note{border-left:3px solid var(--gold);background:#fdf8ee;border-radius:0 6px 6px 0;padding:.9rem 1.2rem;margin:1rem 0 1.4rem;font-size:.88rem;color:var(--slate);}
+  .note.warn{border-color:var(--rust);background:#fdf0ee;}
+  .note.good{border-color:var(--forest);background:#edf7f1;}
+  .note strong{color:var(--ink);}
+  .fmt-table{width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:.73rem;margin:1rem 0 1.5rem;background:var(--code-bg);border-radius:8px;overflow:hidden;border:1px solid var(--border);color:var(--code-fg);}
+  .fmt-table th{background:#0d1117;padding:.65rem 1rem;text-align:left;color:#d2a8ff;font-weight:500;letter-spacing:.08em;text-transform:uppercase;font-size:.62rem;border-bottom:1px solid var(--border);}
+  .fmt-table td{padding:.55rem 1rem;border-bottom:1px solid #161b22;vertical-align:middle;}
+  .fmt-table tr:last-child td{border-bottom:none;}
+  .fmt-table td:first-child{color:#79c0ff;}
+  .fmt-table td:nth-child(3){color:#ffa657;}
+  .fmt-table td:nth-child(4){color:#7ee787;}
+  .fmt-table .col-desc{color:#484f58;font-size:.65rem;}
+  .plot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.8rem;margin:1rem 0 1.5rem;}
+  .plot-card{background:#fff;border-radius:6px;border:1px solid var(--cream);padding:1.1rem 1.2rem;border-top:3px solid var(--rust);transition:box-shadow .2s,transform .2s;}
+  .plot-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.1);transform:translateY(-2px);}
+  .plot-card h4{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--slate);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem;}
+  .plot-card p{font-size:.83rem;color:var(--muted);line-height:1.5;margin:0;}
+  .plot-fn{display:block;margin-top:.5rem;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--rust);}
+  footer{background:var(--ink);color:#3d4450;text-align:center;padding:2.5rem 2rem;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.07em;margin-top:4rem;}
+  footer em{color:var(--rust);font-style:normal;}
+  @media(max-width:640px){.diff-box{grid-template-columns:1fr;}.plot-grid{grid-template-columns:1fr 1fr;}.selector-bar{flex-wrap:wrap;gap:.8rem;}}
+</style>
+</head>
+<body data-mode="sim">
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="badge">R Package · v0.1.0</div>
+    <h1>Mortgage<em>Surv</em><br>Usage Guide</h1>
+    <p class="subtitle">Survival analysis models for mortgage default prediction — works with <strong style="color:#e6edf3">simulated data</strong> or your own <strong style="color:#e6edf3">real mortgage dataset</strong>.</p>
+    <div class="author-line">Ana M Patrón Piñerez · 2025</div>
+  </div>
+</div>
+
+<div class="selector-bar">
+  <span class="selector-label">I have →</span>
+  <div class="path-tabs">
+    <button class="path-tab active-sim" id="tab-sim" onclick="setMode('sim')">📊 No data — use simulation</button>
+    <button class="path-tab" id="tab-real" onclick="setMode('real')">📁 My own real dataset</button>
+  </div>
+</div>
+
+<div class="outer">
+
+  <div class="section">
+    <div class="step-pill">Overview</div>
+    <h2>Which path is for you?</h2>
+    <p class="intro">The key difference: <strong>simulation generates event times for you</strong> (you provide statistical parameters). With real data, <strong>you already have the event times</strong> — no parameters needed.</p>
+    <div class="diff-box">
+      <div class="diff-side sim-side">
+        <h3>📊 Path A · Simulation</h3>
+        <ul>
+          <li class="check">You don't have real mortgage data</li>
+          <li class="check">You want to reproduce the paper</li>
+          <li class="check">You want to explore the package first</li>
+          <li class="cross">Must specify β and θ parameters</li>
+          <li class="cross">Data is synthetic, not real</li>
+        </ul>
+      </div>
+      <div class="diff-side real-side">
+        <h3>📁 Path B · Real Data</h3>
+        <ul>
+          <li class="check">You have a real mortgage CSV</li>
+          <li class="check">Event times already in your data</li>
+          <li class="check">No β or θ parameters needed</li>
+          <li class="cross">Data must be in long format</li>
+          <li class="cross">One row per borrower per period</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note good"><strong>Good news:</strong> once you have the <code style="font-family:monospace">sim</code> object — from either path — <strong>all modelling, plotting and evaluation code is identical</strong>. The two paths only diverge in Step 1.</div>
+  </div>
+
+  <div class="section">
+    <div class="step-pill"><span>0</span> Before you start</div>
+    <h2>Installation</h2>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Install from local folder (after unzipping)</span>
+<span class="fn">devtools</span><span class="op">::</span><span class="fn">install</span>(<span class="st">"C:/Users/HP/Downloads/MortgageSurv"</span>)
+
+<span class="cm"># Or from GitHub</span>
+<span class="fn">devtools</span><span class="op">::</span><span class="fn">install_github</span>(<span class="st">"anamariapatron/MortgageSurv"</span>)
+
+<span class="kw">library</span>(MortgageSurv)</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="step-pill"><span>1</span> Step 1</div>
+    <h2>Get your data</h2>
+
+    <div class="sim-only">
+      <p class="intro">You provide model parameters (β and Weibull θ) and the package <strong>generates borrowers, covariates and default times</strong> for you.</p>
+      <div class="note"><strong>What are β and θ?</strong><br><strong>β (betas)</strong> — regression coefficients linking covariates to default risk. One row per landmark period.<br><strong>θ (thetas)</strong> — Weibull shape &amp; scale parameters controlling <em>when</em> defaults happen.</div>
+      <div class="code-wrap">
+        <div class="code-header"><span class="code-lang">R · Simulated data</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+        <pre><span class="fn">sim</span> <span class="op">&lt;-</span> <span class="fn">simulate_mortgage_data</span>(
+  <span class="arg">n</span>            <span class="op">=</span> <span class="nb">1000</span>,   <span class="cm"># number of borrowers</span>
+  <span class="arg">n_iterations</span> <span class="op">=</span> <span class="nb">7</span>,      <span class="cm"># landmark periods (IMPORTANT: must match landmarks vector later)</span>
+  <span class="arg">seed</span>         <span class="op">=</span> <span class="nb">1234</span>    <span class="cm"># for reproducibility</span>
+)
+
+<span class="cm"># What you get back (all generated automatically):</span>
+<span class="cm"># sim$time_matrix        → (n × 7) default/censoring times</span>
+<span class="cm"># sim$status_matrix      → 1=default, 0=censored, NA=already defaulted</span>
+<span class="cm"># sim$x1_matrix          → interest rate covariate</span>
+<span class="cm"># sim$x2_matrix          → CPI inflation</span>
+<span class="cm"># sim$x3_matrix          → loan-to-income ratio (LTI)</span>
+<span class="cm"># sim$x4_matrix          → borrower age</span>
+<span class="cm"># sim$obsdate_matrix     → observation dates</span>
+<span class="cm"># sim$credit_start_dates → origination dates</span></pre>
+      </div>
+      <div class="note warn"><strong>⚠️ Remember:</strong> <code style="font-family:monospace">length(landmarks)</code> in Step 4 must equal <code style="font-family:monospace">n_iterations</code>. With 7 iterations → use 7 landmark values: <code style="font-family:monospace">c(54, 56, 58, 60, 62, 64, 66)</code></div>
+    </div>
+
+    <div class="real-only">
+      <p class="intro">You already have event times, statuses and covariates. <code style="font-family:monospace">from_real_data()</code> simply converts your data into the matrix format the package expects. <strong>No β or θ needed.</strong></p>
+      <h3 style="font-size:1rem;margin-bottom:.6rem;font-weight:500;">Required format — one row per borrower per period:</h3>
+      <table class="fmt-table">
+        <tr><th>Column</th><th>Type</th><th>Example</th><th>Description</th></tr>
+        <tr><td>id</td><td>int/chr</td><td>1, "LN-42"</td><td class="col-desc">Unique borrower / loan ID</td></tr>
+        <tr><td>iteration</td><td>int</td><td>1, 2, 3…</td><td class="col-desc">Landmark period number (starts at 1)</td></tr>
+        <tr><td>time</td><td>numeric</td><td>62.3</td><td class="col-desc">Months from origination to event/censoring — already in your data!</td></tr>
+        <tr><td>status</td><td>0 / 1</td><td>1</td><td class="col-desc">1 = defaulted, 0 = censored</td></tr>
+        <tr><td>x1, x2…</td><td>numeric</td><td>0.035</td><td class="col-desc">Your covariates (any names, any number)</td></tr>
+        <tr><td>obs_date</td><td>Date</td><td>2020-03-15</td><td class="col-desc">Observation date for this period</td></tr>
+        <tr><td>credit_start</td><td>Date</td><td>2015-01-10</td><td class="col-desc">Mortgage origination date</td></tr>
+      </table>
+      <div class="note"><strong>Not sure about the format?</strong> Generate a small example to compare:<br><br><code style="font-family:monospace;font-size:.82rem">template &lt;- example_real_data(n = 10, m = 3)<br>View(template)</code></div>
+      <div class="code-wrap">
+        <div class="code-header"><span class="code-lang">R · Real data</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+        <pre><span class="cm"># Load your dataset</span>
+<span class="fn">my_data</span> <span class="op">&lt;-</span> <span class="fn">read.csv</span>(<span class="st">"my_mortgages.csv"</span>)
+
+<span class="cm"># Just map your column names — no betas, no thetas, no simulation!</span>
+<span class="fn">sim</span> <span class="op">&lt;-</span> <span class="fn">from_real_data</span>(
+  <span class="arg">data</span>           <span class="op">=</span> my_data,
+  <span class="arg">id_col</span>         <span class="op">=</span> <span class="st">"loan_id"</span>,
+  <span class="arg">time_col</span>       <span class="op">=</span> <span class="st">"months_to_event"</span>,   <span class="cm"># already in your data!</span>
+  <span class="arg">status_col</span>     <span class="op">=</span> <span class="st">"defaulted"</span>,         <span class="cm"># 1=default, 0=censored</span>
+  <span class="arg">covariate_cols</span> <span class="op">=</span> <span class="fn">c</span>(<span class="st">"interest_rate"</span>, <span class="st">"inflation"</span>,
+                     <span class="st">"lti"</span>, <span class="st">"age"</span>),
+  <span class="arg">date_col</span>       <span class="op">=</span> <span class="st">"obs_date"</span>,
+  <span class="arg">start_date_col</span> <span class="op">=</span> <span class="st">"origination_date"</span>,
+  <span class="arg">iteration_col</span>  <span class="op">=</span> <span class="st">"period"</span>
+)
+
+<span class="cm"># Validate everything looks correct</span>
+<span class="fn">validate_mortgage_data</span>(sim)</pre>
+      </div>
+      <div class="note good"><strong>From here on, the code is 100% identical to the simulation path.</strong> The <code style="font-family:monospace">sim</code> object has exactly the same structure either way.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="step-pill"><span>2</span> Step 2</div>
+    <h2>Visualise default patterns</h2>
+    <div class="plot-grid">
+      <div class="plot-card"><h4>Cumulative defaults</h4><p>Total defaults accumulating across landmark periods.</p><span class="plot-fn">plot_cumulative_deaths()</span></div>
+      <div class="plot-card"><h4>Default times</h4><p>Each dot = one borrower. Shows the time distribution.</p><span class="plot-fn">plot_death_times()</span></div>
+      <div class="plot-card"><h4>Default dates</h4><p>Calendar view with landmark lines overlaid.</p><span class="plot-fn">plot_default_dates()</span></div>
+    </div>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="fn">plot_cumulative_deaths</span>(sim<span class="op">$</span>status_matrix)
+<span class="fn">plot_death_times</span>(sim<span class="op">$</span>time_matrix, sim<span class="op">$</span>status_matrix)
+<span class="fn">plot_default_dates</span>(sim<span class="op">$</span>obsdate_matrix, sim<span class="op">$</span>status_matrix)</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="step-pill"><span>3</span> Step 3</div>
+    <h2>Static survival models</h2>
+    <p class="intro">Fits Cox PH, Weibull PH and Weibull AFT in one call.</p>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="fn">df_aft</span> <span class="op">&lt;-</span> <span class="fn">prepare_aft_data</span>(
+  <span class="arg">time_matrix</span>        <span class="op">=</span> sim<span class="op">$</span>time_matrix,
+  <span class="arg">status_matrix</span>      <span class="op">=</span> sim<span class="op">$</span>status_matrix,
+  <span class="arg">x1_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x1_matrix,
+  <span class="arg">x2_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x2_matrix,
+  <span class="arg">x3_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x3_matrix,
+  <span class="arg">x4_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x4_matrix,
+  <span class="arg">obsdate_matrix</span>     <span class="op">=</span> sim<span class="op">$</span>obsdate_matrix,
+  <span class="arg">credit_start_dates</span> <span class="op">=</span> sim<span class="op">$</span>credit_start_dates
+)
+
+<span class="fn">fits</span> <span class="op">&lt;-</span> <span class="fn">fit_static_models</span>(df_aft)
+
+<span class="fn">summary</span>(fits<span class="op">$</span>cox)
+<span class="fn">summary</span>(fits<span class="op">$</span>weibull_aft)
+<span class="fn">plot_cumhaz_static</span>(fits<span class="op">$</span>weibull_ph, fits<span class="op">$</span>weibull_aft)</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="step-pill"><span>4</span> Step 4</div>
+    <h2>Dynamic Landmarking model</h2>
+    <p class="intro">Fits a separate Cox model at each landmark using LOCF covariates — re-calibrated at every time-point.</p>
+    <div class="note warn"><strong>⚠️ Key rule:</strong> <code style="font-family:monospace">length(landmarks)</code> must equal <code style="font-family:monospace">n_iterations</code> from Step 1. With 7 iterations → 7 landmarks.</div>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="fn">landmarks</span> <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nb">54</span>, <span class="nb">56</span>, <span class="nb">58</span>, <span class="nb">60</span>, <span class="nb">62</span>, <span class="nb">64</span>, <span class="nb">66</span>)  <span class="cm"># 7 values for 7 iterations</span>
+
+<span class="fn">df_long</span> <span class="op">&lt;-</span> <span class="fn">prepare_landmark_data</span>(
+  <span class="arg">time_matrix</span>        <span class="op">=</span> sim<span class="op">$</span>time_matrix,
+  <span class="arg">status_matrix</span>      <span class="op">=</span> sim<span class="op">$</span>status_matrix,
+  <span class="arg">x1_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x1_matrix,
+  <span class="arg">x2_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x2_matrix,
+  <span class="arg">x3_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x3_matrix,
+  <span class="arg">x4_matrix</span>          <span class="op">=</span> sim<span class="op">$</span>x4_matrix,
+  <span class="arg">obsdate_matrix</span>     <span class="op">=</span> sim<span class="op">$</span>obsdate_matrix,
+  <span class="arg">credit_start_dates</span> <span class="op">=</span> sim<span class="op">$</span>credit_start_dates,
+  <span class="arg">landmarks</span>          <span class="op">=</span> landmarks
+)
+
+<span class="fn">lm_fit</span> <span class="op">&lt;-</span> <span class="fn">fit_landmark_model</span>(
+  <span class="arg">df_long</span> <span class="op">=</span> df_long,
+  <span class="arg">x_L</span>     <span class="op">=</span> landmarks,
+  <span class="arg">x_hor</span>   <span class="op">=</span> landmarks <span class="op">+</span> <span class="nb">12</span>
+)</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="step-pill"><span>5</span> Step 5</div>
+    <h2>Predictions &amp; comparison</h2>
+    <div class="plot-grid">
+      <div class="plot-card"><h4>Cumulative hazard</h4><p>One borrower's risk trajectory across all landmarks.</p><span class="plot-fn">plot_cumulative_hazard()</span></div>
+      <div class="plot-card"><h4>Landmark densities</h4><p>Distribution of predicted risk (pink) per landmark.</p><span class="plot-fn">plot_landmark_densities()</span></div>
+      <div class="plot-card"><h4>AFT densities</h4><p>Distribution of predicted risk from AFT (green).</p><span class="plot-fn">plot_aft_densities()</span></div>
+      <div class="plot-card"><h4>AFT vs Landmarking</h4><p>Direct overlay comparison across all landmarks.</p><span class="plot-fn">plot_risk_comparison()</span></div>
+    </div>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="fn">plot_cumulative_hazard</span>(lm_fit, <span class="arg">person_id</span> <span class="op">=</span> <span class="nb">3</span>)
+<span class="fn">plot_landmark_densities</span>(lm_fit, landmarks)
+
+<span class="fn">risk_aft</span> <span class="op">&lt;-</span> <span class="fn">predict_risk_aft</span>(
+  fits<span class="op">$</span>weibull_aft, <span class="arg">newdata</span> <span class="op">=</span> df_aft, <span class="arg">landmarks</span> <span class="op">=</span> landmarks
+)
+
+<span class="fn">plot_risk_comparison</span>(
+  <span class="arg">landmark_model</span> <span class="op">=</span> lm_fit,
+  <span class="arg">risk_list_aft</span>  <span class="op">=</span> risk_aft,
+  <span class="arg">landmarks</span>      <span class="op">=</span> landmarks,
+  <span class="arg">output_pdf</span>     <span class="op">=</span> <span class="st">"comparison.pdf"</span>   <span class="cm"># remove to plot on screen</span>
+)</pre>
+    </div>
+  </div>
+
+  <div class="section sim-only">
+    <div class="step-pill"><span>6</span> Step 6 · Simulation only</div>
+    <h2>Pseudo-evaluation metric</h2>
+    <p class="intro">Approximates expected default time for a <em>median borrower</em> per period, using the true β and θ. Only makes sense when you know the data-generating process — i.e. with simulated data.</p>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R · Simulation only</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="fn">ev</span> <span class="op">&lt;-</span> <span class="fn">evaluate_landmark_risk</span>(
+  <span class="arg">matrices</span> <span class="op">=</span> <span class="fn">list</span>(sim<span class="op">$</span>x1_matrix, sim<span class="op">$</span>x2_matrix,
+                   sim<span class="op">$</span>x3_matrix, sim<span class="op">$</span>x4_matrix),
+  <span class="arg">betas</span> <span class="op">=</span> <span class="fn">matrix</span>(<span class="fn">c</span>(
+     <span class="nb">50</span>, <span class="nb">0.90</span>, <span class="nb">0.80</span>, <span class="op">-</span><span class="nb">0.20</span>,  <span class="nb">51</span>, <span class="nb">0.92</span>, <span class="nb">0.81</span>, <span class="op">-</span><span class="nb">0.21</span>,
+     <span class="nb">49</span>, <span class="nb">0.88</span>, <span class="nb">0.79</span>, <span class="op">-</span><span class="nb">0.19</span>,  <span class="nb">52</span>, <span class="nb">0.95</span>, <span class="nb">0.82</span>, <span class="op">-</span><span class="nb">0.22</span>,
+     <span class="nb">48</span>, <span class="nb">0.89</span>, <span class="nb">0.78</span>, <span class="op">-</span><span class="nb">0.18</span>,   <span class="nb">5</span>, <span class="nb">0.90</span>, <span class="nb">0.80</span>, <span class="op">-</span><span class="nb">0.20</span>,
+     <span class="nb">51</span>, <span class="nb">0.91</span>, <span class="nb">0.81</span>, <span class="op">-</span><span class="nb">0.21</span>
+  ), <span class="arg">nrow</span> <span class="op">=</span> <span class="nb">7</span>, <span class="arg">byrow</span> <span class="op">=</span> <span class="kw">TRUE</span>),
+  <span class="arg">thetas</span> <span class="op">=</span> <span class="fn">matrix</span>(<span class="fn">c</span>(
+    <span class="nb">0.5</span>, <span class="nb">22.25</span>, <span class="nb">0.5</span>, <span class="nb">22.49</span>, <span class="nb">0.5</span>, <span class="nb">22.50</span>, <span class="nb">0.5</span>, <span class="nb">22.73</span>,
+    <span class="nb">0.5</span>, <span class="nb">22.96</span>, <span class="nb">0.5</span>, <span class="nb">23.19</span>, <span class="nb">0.5</span>, <span class="nb">23.41</span>
+  ), <span class="arg">nrow</span> <span class="op">=</span> <span class="nb">7</span>, <span class="arg">byrow</span> <span class="op">=</span> <span class="kw">TRUE</span>),
+  <span class="arg">seed</span> <span class="op">=</span> <span class="nb">42</span>
+)
+ev<span class="op">$</span>result</pre>
+    </div>
+  </div>
+
+  <div class="section real-only">
+    <div class="step-pill"><span>6</span> Step 6 · Real data</div>
+    <h2>Evaluate on real data</h2>
+    <p class="intro">With real data you don't know the true β/θ, so the pseudo-evaluation metric doesn't apply. Instead, extract predicted probabilities and assess them against observed outcomes.</p>
+    <div class="note good"><strong>Recommended:</strong> Use <code style="font-family:monospace">predict_risk_aft()</code> and <code style="font-family:monospace">predict_risk_ph()</code> to get predicted probabilities, then evaluate with AUC, Brier score, or calibration plots.</div>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">R · Real data evaluation</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="fn">risk_aft</span> <span class="op">&lt;-</span> <span class="fn">predict_risk_aft</span>(
+  fits<span class="op">$</span>weibull_aft, <span class="arg">newdata</span> <span class="op">=</span> df_aft, <span class="arg">landmarks</span> <span class="op">=</span> landmarks
+)
+
+<span class="cm"># risk_aft[["60"]] → predicted % default risk at landmark 60 for each borrower</span>
+<span class="fn">summary</span>(risk_aft[[<span class="st">"60"</span>]])
+<span class="fn">hist</span>(risk_aft[[<span class="st">"60"</span>]], <span class="arg">main</span> <span class="op">=</span> <span class="st">"AFT predicted risk at landmark 60"</span>)</pre>
+    </div>
+  </div>
+
+</div>
+
+<footer>MortgageSurv v0.1.0 &nbsp;·&nbsp; <em>Ana M Patrón Piñerez</em> &nbsp;·&nbsp; 2025 &nbsp;·&nbsp; MIT License</footer>
+
+<script>
+function setMode(m){
+  document.body.setAttribute('data-mode',m);
+  document.getElementById('tab-sim').className='path-tab'+(m==='sim'?' active-sim':'');
+  document.getElementById('tab-real').className='path-tab'+(m==='real'?' active-real':'');
+}
+function copyCode(btn){
+  const text=btn.closest('.code-wrap').querySelector('pre').innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✓ copied';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='copy';btn.classList.remove('ok');},1800);
+  });
+}
+</script>
+</body>
+</html>

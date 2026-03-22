@@ -13,11 +13,14 @@ mortgage **origination** (birth), while **default** is reinterpreted as death.
 This conceptual shift provides a novel framework for studying loan dynamics in
 the period preceding default.
 
+**Author:** Ana M Patrón Piñerez
+
 The package implements:
 
 | Module | Functions |
 |--------|-----------|
 | **Simulation** | `simulate_mortgage_data()`, `simLMPH()`, `find_lambda()`, `generate_landmarks()` |
+| **Real Data** | `from_real_data()`, `validate_mortgage_data()`, `example_real_data()` |
 | **Static Modelling** | `prepare_aft_data()`, `fit_static_models()`, `plot_cumhaz_static()` |
 | **Dynamic Modelling** | `prepare_landmark_data()`, `fit_landmark_model()` |
 | **Prediction** | `predict_risk_aft()`, `predict_risk_ph()` |
@@ -34,26 +37,61 @@ install.packages("MortgageSurv_0.1.0.tar.gz", repos = NULL, type = "source")
 
 # Or install directly from the source folder:
 devtools::install("path/to/MortgageSurv")
+
+# Or from GitHub:
+devtools::install_github("anamariapatron/MortgageSurv")
 ```
 
 ### Dependencies
 
 ```r
 install.packages(c("lubridate", "truncnorm", "ggplot2", "dplyr",
-                   "survival", "Landmarking", "eha", "tidyr"))
+                   "survival", "Landmarking", "eha", "flexsurv", "tidyr"))
 ```
 
 ---
 
 ## Workflow
 
-### 1 · Simulate mortgage data
+### Option A · Simulated data
 
 ```r
 library(MortgageSurv)
 
 sim <- simulate_mortgage_data(n = 1000, n_iterations = 7, seed = 1234)
-# Returns: time_matrix, status_matrix, obsdate_matrix, x1–x4 matrices, etc.
+```
+
+### Option B · Real data
+
+```r
+library(MortgageSurv)
+
+# See the expected format:
+template <- example_real_data(n = 10, m = 3)
+
+# Load your own data:
+my_data <- read.csv("my_mortgages.csv")
+
+sim <- from_real_data(
+  data           = my_data,
+  id_col         = "loan_id",
+  time_col       = "months_to_event",
+  status_col     = "defaulted",
+  covariate_cols = c("interest_rate", "inflation", "lti", "age"),
+  date_col       = "obs_date",
+  start_date_col = "origination_date",
+  iteration_col  = "period"
+)
+```
+
+---
+
+### 1 · Visualise default patterns
+
+```r
+plot_cumulative_deaths(sim$status_matrix)
+plot_death_times(sim$time_matrix, sim$status_matrix)
+plot_default_dates(sim$obsdate_matrix, sim$status_matrix)
 ```
 
 ### 2 · Fit static models (Cox, Weibull PH, Weibull AFT)
@@ -75,20 +113,10 @@ summary(fits$weibull_aft)
 plot_cumhaz_static(fits$weibull_ph, fits$weibull_aft)
 ```
 
-### 3 · Visualise default patterns
+### 3 · Fit the dynamic Landmarking model
 
 ```r
-plot_cumulative_deaths(sim$status_matrix)
-
-plot_death_times(sim$time_matrix, sim$status_matrix)
-
-plot_default_dates(sim$obsdate_matrix, sim$status_matrix)
-```
-
-### 3 · Prepare and fit the Landmarking model
-
-```r
-landmarks <- c(54, 56, 58, 60, 62, 64)
+landmarks <- c(54, 56, 58, 60, 62, 64, 66)   # must match n_iterations
 
 df_long <- prepare_landmark_data(
   time_matrix        = sim$time_matrix,
@@ -102,24 +130,20 @@ df_long <- prepare_landmark_data(
   landmarks          = landmarks
 )
 
-lm_fit <- fit_landmark_model(df_long, x_L = landmarks)
+lm_fit <- fit_landmark_model(df_long, x_L = landmarks, x_hor = landmarks + 12)
 ```
 
 ### 4 · Visualise predictions
 
 ```r
-# Cumulative hazard for borrower #3
 plot_cumulative_hazard(lm_fit, person_id = 3)
-
-# Density of predicted default risk per landmark
 plot_landmark_densities(lm_fit, landmarks)
 ```
 
-### 5 · Compare AFT vs. Landmarking predictions
+### 5 · Compare AFT vs. Landmarking
 
 ```r
-# (Assuming fit_weibull_aft and df_aft are available from eha::aftreg())
-risk_aft <- predict_risk_aft(fit_weibull_aft, newdata = df_aft,
+risk_aft <- predict_risk_aft(fits$weibull_aft, newdata = df_aft,
                               landmarks = landmarks)
 
 plot_risk_comparison(lm_fit, risk_aft, landmarks,
@@ -129,28 +153,24 @@ plot_risk_comparison(lm_fit, risk_aft, landmarks,
 ### 6 · Pseudo-evaluation metric
 
 ```r
-betas <- matrix(c(
-   50,  0.9,  0.8, -0.2,
-   51, 0.92, 0.81, -0.21,
-   49, 0.88, 0.79, -0.19,
-   52, 0.95, 0.82, -0.22,
-   48, 0.89, 0.78, -0.18,
-    5,  0.9,  0.8, -0.2,
-   51, 0.91, 0.81, -0.21
-), nrow = 7, byrow = TRUE)
-
-thetas <- matrix(c(
-  0.5, 22.25, 0.5, 22.49, 0.5, 22.498,
-  0.5, 22.73, 0.5, 22.96, 0.5, 23.19, 0.5, 23.41
-), nrow = 7, byrow = TRUE)
-
 ev <- evaluate_landmark_risk(
   matrices = list(sim$x1_matrix, sim$x2_matrix,
                   sim$x3_matrix, sim$x4_matrix),
-  betas    = betas,
-  thetas   = thetas
+  betas    = matrix(c(
+     50,  0.9,  0.8, -0.2,
+     51, 0.92, 0.81, -0.21,
+     49, 0.88, 0.79, -0.19,
+     52, 0.95, 0.82, -0.22,
+     48, 0.89, 0.78, -0.18,
+      5,  0.9,  0.8, -0.2,
+     51, 0.91, 0.81, -0.21
+  ), nrow = 7, byrow = TRUE),
+  thetas   = matrix(c(
+    0.5, 22.25, 0.5, 22.49, 0.5, 22.50,
+    0.5, 22.73, 0.5, 22.96, 0.5, 23.19, 0.5, 23.41
+  ), nrow = 7, byrow = TRUE)
 )
-ev$result   # approximate event times for median borrower
+ev$result
 ```
 
 ---
@@ -185,11 +205,11 @@ forward covariate values.
 
 If you use this package in your research, please cite:
 
-> [Author(s)]. (2025). *MortgageSurv: Survival Analysis Models for Mortgage
+> Patrón Piñerez, A.M. (2025). *MortgageSurv: Survival Analysis Models for Mortgage
 > Default Prediction*. R package version 0.1.0.
 
 ---
 
 ## License
 
-MIT © 2025
+MIT © 2025 Ana M Patrón Piñerez

@@ -21,15 +21,20 @@ export(evaluate_landmark_risk)
 export(prepare_aft_data)
 export(fit_static_models)
 export(plot_cumhaz_static)
+export(from_real_data)
+export(validate_mortgage_data)
+export(example_real_data)
 
 importFrom(dplyr,filter,group_by,mutate,ungroup,if_else)
+importFrom(flexsurv,flexsurvreg)
 importFrom(ggplot2,ggplot,aes,geom_line,geom_point,geom_rect,geom_vline,
            geom_text,scale_x_date,labs,theme_minimal,theme,element_text,guides)
-importFrom(graphics,par,plot,polygon,lines,mtext,legend,density)
+importFrom(graphics,par,plot,polygon,lines,mtext,legend,abline)
 importFrom(grDevices,adjustcolor,pdf,dev.off)
 importFrom(Landmarking,return_ids_with_LOCF,fit_LOCF_landmark)
-importFrom(flexsurv,flexsurvreg)
-importFrom(lubridate,years,weeks,as_date,days,months,interval,
+importFrom(lubridate,"%m+%",years,weeks,as_date,days,interval,
            floor_date,ceiling_date)
-importFrom(stats,uniroot,pweibull,qweibull,runif,rweibull,quantile,density)
+importFrom(stats,uniroot,pweibull,qweibull,runif,rweibull,quantile,density,
+           setNames,rnorm)
+importFrom(survival,coxph,Surv)
 importFrom(truncnorm,rtruncnorm)
