@@ -498,7 +498,7 @@ footer a { color: #7ec8e3; text-decoration: none; }
       <div class="code-top"><span class="code-top-lang">R</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
       <pre><span class="fn">sim</span> <span class="op">&lt;-</span> <span class="fn">simulate_mortgage_data</span>(
   <span class="arg">n</span>            <span class="op">=</span> <span class="nb">1000</span>,   <span class="cm"># number of borrowers</span>
-  <span class="arg">n_iterations</span> <span class="op">=</span> <span class="nb">7</span>,      <span class="cm"># landmark periods — must match landmarks vector later</span>
+  <span class="arg">n_iterations</span> <span class="op">=</span> <span class="nb">6</span>,      <span class="cm"># landmark periods — must match landmarks vector later</span>
   <span class="arg">seed</span>         <span class="op">=</span> <span class="nb">1234</span>
 )
 
@@ -514,7 +514,7 @@ footer a { color: #7ec8e3; text-decoration: none; }
 
     <div class="alert alert-warn">
       <strong>Important:</strong> <code>length(landmarks)</code> in Step 4 must equal <code>n_iterations</code>.
-      With <code>n_iterations = 7</code> use <code>landmarks &lt;- c(54, 56, 58, 60, 62, 64, 66)</code>.
+      With <code>n_iterations = 6</code> use <code>landmarks &lt;- c(54, 56, 58, 60, 62, 64)</code>. Landmarks must be within the <code>obs_time</code> range of your data (check with <code>summary(df_long$obs_time)</code>).
     </div>
   </div>
 
@@ -634,13 +634,13 @@ footer a { color: #7ec8e3; text-decoration: none; }
 
   <div class="alert alert-warn">
     <strong>Key constraint:</strong> <code>length(landmarks)</code> must equal <code>n_iterations</code>
-    from Step 1. With <code>n_iterations = 7</code>, use exactly 7 landmark values.
+    from Step 1. With <code>n_iterations = 6</code>, use exactly 6 landmark values. Landmarks must also fall within the <code>obs_time</code> range of your data.
   </div>
 
   <div class="code-block">
     <div class="code-top"><span class="code-top-lang">R</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-    <pre><span class="cm"># 7 landmarks for 7 iterations</span>
-<span class="fn">landmarks</span> <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nb">54</span>, <span class="nb">56</span>, <span class="nb">58</span>, <span class="nb">60</span>, <span class="nb">62</span>, <span class="nb">64</span>, <span class="nb">66</span>)
+    <pre><span class="cm"># 6 landmarks for 6 iterations — within obs_time range</span>
+<span class="fn">landmarks</span> <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nb">54</span>, <span class="nb">56</span>, <span class="nb">58</span>, <span class="nb">60</span>, <span class="nb">62</span>, <span class="nb">64</span>)
 
 <span class="fn">df_long</span> <span class="op">&lt;-</span> <span class="fn">prepare_landmark_data</span>(
   <span class="arg">time_matrix</span>        <span class="op">=</span> sim<span class="op">$</span>time_matrix,
