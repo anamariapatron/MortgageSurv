@@ -303,7 +303,7 @@ simulate_mortgage_data <- function(n            = 1000L,
 #' @importFrom ggplot2 ggplot aes geom_line geom_point labs theme_minimal
 #' @export
 plot_cumulative_deaths <- function(status_matrix,
-                                   LMs = c(60, 62, 64, 66, 68, 70, 72)) {
+                                   LMs = c(54, 56, 58, 60, 62, 64)) {
   cum_deaths <- cumsum(colSums(status_matrix, na.rm = TRUE))
   df_cum <- data.frame(time = LMs, cum_deaths = cum_deaths)
 
@@ -391,7 +391,7 @@ plot_death_times <- function(time_matrix, status_matrix) {
 plot_default_dates <- function(obsdate_matrix,
                                status_matrix,
                                LM_start_date = as.Date("2015-01-01"),
-                               LMs           = c(60, 62, 64, 66, 68, 70, 72)) {
+                               LMs           = c(54, 56, 58, 60, 62, 64)) {
   df_events <- data.frame(
     individual = rep(seq_len(nrow(status_matrix)), times = ncol(status_matrix)),
     date       = as.Date(as.vector(obsdate_matrix)),
