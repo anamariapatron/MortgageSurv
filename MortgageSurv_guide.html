@@ -708,35 +708,7 @@ footer a { color: #7ec8e3; text-decoration: none; }
 )</pre>
   </div>
 
-  <!-- STEP 6 SIM -->
-  <div class="sim-only">
-    <h2 id="step6">Step 6 — Pseudo-evaluation (simulation only)</h2>
-    <p>
-      Approximates the expected default time for a median borrower at each landmark period
-      using the true simulation parameters β and θ. This is only meaningful when the
-      data-generating process is known.
-    </p>
-    <div class="code-block">
-      <div class="code-top"><span class="code-top-lang">R</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
-      <pre><span class="fn">ev</span> <span class="op">&lt;-</span> <span class="fn">evaluate_landmark_risk</span>(
-  <span class="arg">matrices</span> <span class="op">=</span> <span class="fn">list</span>(sim<span class="op">$</span>x1_matrix, sim<span class="op">$</span>x2_matrix,
-                   sim<span class="op">$</span>x3_matrix, sim<span class="op">$</span>x4_matrix),
-  <span class="arg">betas</span> <span class="op">=</span> <span class="fn">matrix</span>(<span class="fn">c</span>(
-     <span class="nb">50</span>, <span class="nb">0.90</span>, <span class="nb">0.80</span>, <span class="op">-</span><span class="nb">0.20</span>,  <span class="nb">51</span>, <span class="nb">0.92</span>, <span class="nb">0.81</span>, <span class="op">-</span><span class="nb">0.21</span>,
-     <span class="nb">49</span>, <span class="nb">0.88</span>, <span class="nb">0.79</span>, <span class="op">-</span><span class="nb">0.19</span>,  <span class="nb">52</span>, <span class="nb">0.95</span>, <span class="nb">0.82</span>, <span class="op">-</span><span class="nb">0.22</span>,
-     <span class="nb">48</span>, <span class="nb">0.89</span>, <span class="nb">0.78</span>, <span class="op">-</span><span class="nb">0.18</span>,   <span class="nb">5</span>, <span class="nb">0.90</span>, <span class="nb">0.80</span>, <span class="op">-</span><span class="nb">0.20</span>,
-     <span class="nb">51</span>, <span class="nb">0.91</span>, <span class="nb">0.81</span>, <span class="op">-</span><span class="nb">0.21</span>
-  ), <span class="arg">nrow</span> <span class="op">=</span> <span class="nb">7</span>, <span class="arg">byrow</span> <span class="op">=</span> <span class="kw">TRUE</span>),
-  <span class="arg">thetas</span> <span class="op">=</span> <span class="fn">matrix</span>(<span class="fn">c</span>(
-    <span class="nb">0.5</span>, <span class="nb">22.25</span>, <span class="nb">0.5</span>, <span class="nb">22.49</span>, <span class="nb">0.5</span>, <span class="nb">22.50</span>, <span class="nb">0.5</span>, <span class="nb">22.73</span>,
-    <span class="nb">0.5</span>, <span class="nb">22.96</span>, <span class="nb">0.5</span>, <span class="nb">23.19</span>, <span class="nb">0.5</span>, <span class="nb">23.41</span>
-  ), <span class="arg">nrow</span> <span class="op">=</span> <span class="nb">7</span>, <span class="arg">byrow</span> <span class="op">=</span> <span class="kw">TRUE</span>),
-  <span class="arg">seed</span> <span class="op">=</span> <span class="nb">42</span>
-)
-
-ev<span class="op">$</span>result   <span class="cm"># expected default time per period for median borrower</span></pre>
-    </div>
-  </div>
+  
 
   <!-- STEP 6 REAL -->
   <div class="real-only">
