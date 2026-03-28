@@ -1,175 +1,460 @@
 # ==============================================================================
-#  static_modelling.R
-#  Mirrors 2_StaticModelling.R EXACTLY — including obsdate_matrix[n, i].
+# simulation.R
 # ==============================================================================
 
-
-#' Prepare one-row-per-borrower dataset for static survival models
+#' Find the Weibull scale parameter (lambda) for a target default probability
 #'
-#' Mirrors \code{2_StaticModelling.R} exactly.
-#' Uses \code{obsdate_matrix[n, i]} (last row) as observation date for all
-#' individuals per iteration — same as the original script.
+#' @param t0 Numeric. Start of the interval (in months).
+#' @param t1 Numeric. End of the interval (in months).
+#' @param k Numeric. Weibull shape parameter.
+#' @param p_target Numeric. Target default probability in [t0, t1].
 #'
-#' @param time_matrix Numeric matrix (n x m).
-#' @param status_matrix Integer matrix (n x m).
-#' @param x1_matrix Numeric matrix of interest-rate values.
-#' @param x2_matrix Numeric matrix of inflation values.
-#' @param x3_matrix Numeric matrix of LTI values.
-#' @param x4_matrix Numeric matrix of borrower age values.
-#' @param obsdate_matrix Date matrix of observation dates.
-#' @param credit_start_dates Date vector of origination dates (length n).
-#' @param landmarks Numeric vector of landmark months.
-#'   Default \code{c(60, 62, 64, 66, 68, 70, 72)}.
-#' @param censor_time Numeric. Time assigned to censored borrowers. Default \code{72}.
-#' @param last_iteration Integer. Last iteration index for censored borrowers.
-#'   Default \code{7}.
-#'
-#' @return A \code{data.frame} with one row per borrower.
-#'
-#' @importFrom dplyr group_by summarise mutate ungroup rowwise
+#' @return Numeric scalar.
 #' @export
-prepare_aft_data <- function(time_matrix,
-                              status_matrix,
-                              x1_matrix,
-                              x2_matrix,
-                              x3_matrix,
-                              x4_matrix,
-                              obsdate_matrix,
-                              credit_start_dates,
-                              landmarks     = c(60, 62, 64, 66, 68, 70, 72),
-                              censor_time   = 72,
-                              last_iteration = 7L) {
-
-  n <- nrow(time_matrix)
-  m <- ncol(time_matrix)
-
-  # ── Build long format — uses obsdate_matrix[n, i] for all individuals ─────
-  df_long <- data.frame()
-  for (i in seq_len(m)) {
-    df_long <- rbind(df_long,
-                     data.frame(
-                       id        = seq_len(n),
-                       iteration = i,
-                       time      = time_matrix[, i],
-                       status    = status_matrix[, i],
-                       x1        = x1_matrix[, i],
-                       x2        = x2_matrix[, i],
-                       x3        = x3_matrix[, i],
-                       x4        = x4_matrix[, i],
-                       obs_date  = obsdate_matrix[n, i]   # last row, all individuals
-                     ))
+find_lambda <- function(t0, t1, k, p_target = 0.2) {
+  f <- function(lambda) {
+    ratio <- exp(-((t1 / lambda)^k - (t0 / lambda)^k))
+    ratio - (1 - p_target)
   }
-
-  df_long$obs_date    <- as.Date(df_long$obs_date)
-  df_long$obs_time    <- as.numeric(
-    difftime(df_long$obs_date,
-             credit_start_dates[df_long$id],
-             units = "days")) / 30.44
-  df_long$month_final <- landmarks[df_long$iteration]
-
-  # ── Collapse to one row per individual — mirrors original summarise/mutate ─
-  df_aft <- df_long |>
-    dplyr::group_by(id) |>
-    dplyr::summarise(
-      event_index = which(status == 1)[1],
-      .groups     = "drop"
-    ) |>
-    dplyr::rowwise() |>
-    dplyr::mutate(
-      status = ifelse(!is.na(event_index), 1, 0),
-      time   = ifelse(!is.na(event_index),
-                      df_long$obs_time[df_long$id == id][event_index],
-                      censor_time),
-      iteration = ifelse(!is.na(event_index),
-                         df_long$iteration[df_long$id == id][event_index],
-                         last_iteration),
-      x1 = ifelse(!is.na(event_index),
-                  df_long$x1[df_long$id == id][event_index],
-                  df_long$x1[df_long$id == id &
-                               df_long$iteration == last_iteration]),
-      x2 = ifelse(!is.na(event_index),
-                  df_long$x2[df_long$id == id][event_index],
-                  df_long$x2[df_long$id == id &
-                               df_long$iteration == last_iteration]),
-      x3 = ifelse(!is.na(event_index),
-                  df_long$x3[df_long$id == id][event_index],
-                  df_long$x3[df_long$id == id &
-                               df_long$iteration == last_iteration]),
-      x4 = ifelse(!is.na(event_index),
-                  df_long$x4[df_long$id == id][event_index],
-                  df_long$x4[df_long$id == id &
-                               df_long$iteration == last_iteration]),
-      month_final = ifelse(!is.na(event_index),
-                           df_long$month_final[df_long$id == id][event_index],
-                           censor_time)
-    ) |>
-    dplyr::ungroup()
-
-  as.data.frame(df_aft)
+  stats::uniroot(f, interval = c(1e-6, 1e6))$root
 }
 
 
-#' Fit static survival models (Cox, Weibull PH, Weibull AFT)
+#' Generate individual landmark dates from a credit start date
 #'
-#' Mirrors \code{2_StaticModelling.R} exactly.
+#' @param credit_start Date.
+#' @param n_iterations Integer. Number of observation landmarks.
+#' @param spacing_weeks Integer. Weeks between landmarks after the first.
 #'
-#' @param df_aft A \code{data.frame} from \code{\link{prepare_aft_data}}.
-#' @param formula A \code{formula}. Default
-#'   \code{Surv(time, status) ~ x1 + x2 + x3 + x4}.
-#'
-#' @return Named list: \code{cox}, \code{weibull_ph}, \code{weibull_aft}.
-#'
-#' @importFrom survival coxph Surv
-#' @importFrom flexsurv flexsurvreg
+#' @return Date vector of length n_iterations + 1.
+#' @importFrom lubridate years weeks as_date
 #' @export
-fit_static_models <- function(df_aft,
-                               formula = survival::Surv(time, status) ~
-                                           x1 + x2 + x3 + x4) {
-  list(
-    cox         = survival::coxph(formula, data = df_aft),
-    weibull_ph  = flexsurv::flexsurvreg(formula, data = df_aft,
-                                         dist = "weibullPH"),
-    weibull_aft = flexsurv::flexsurvreg(formula, data = df_aft,
-                                         dist = "weibull")
+generate_landmarks <- function(credit_start,
+                               n_iterations = 7L,
+                               spacing_weeks = 6L) {
+  lm1 <- credit_start + lubridate::years(5)
+  offsets <- c(0, cumsum(rep(spacing_weeks, n_iterations)))
+  lubridate::as_date(lm1 + lubridate::weeks(offsets))
+}
+
+
+# Internal helper: convert landmark dates to months since origination
+landmark_times_in_months <- function(credit_start, landmark_dates) {
+  as.numeric(
+    lubridate::time_length(
+      lubridate::interval(credit_start, landmark_dates),
+      unit = "month"
+    )
   )
 }
 
 
-#' Plot cumulative hazard from static models
+#' Simulate event times under a Landmark PH Weibull model
 #'
-#' @param fit_weibull_ph Fitted Weibull PH model.
-#' @param fit_weibull_aft Fitted Weibull AFT model.
-#' @param landmarks Numeric vector of landmark lines to draw.
-#' @param xlim Numeric vector of length 2. Default \code{c(50, 72)}.
+#' @param seed Integer or NULL.
+#' @param x Numeric matrix of covariates.
+#' @param Betas Numeric matrix of coefficients.
+#' @param Thetas Numeric matrix of Weibull parameters.
+#' @param LMs Numeric vector of landmark times in months, length K + 1.
+#' @param dist Character. Only "W".
 #'
-#' @return Invisible \code{NULL}.
-#'
-#' @importFrom graphics plot legend abline
+#' @return Numeric vector of event times in months.
 #' @export
-plot_cumhaz_static <- function(fit_weibull_ph,
-                                fit_weibull_aft,
-                                landmarks = c(60, 62, 64, 66, 68, 70, 72),
-                                xlim      = c(50, 72)) {
-  colors <- c("#FF9999", "#FFCC33", "#2EB67D",
-              "#57C9BE", "#7FDBFF", "#9999FF", "#FF99B8")
-
-  plot(fit_weibull_ph,
-       type = "cumhaz", col = "blue", lwd = 2,
-       xlab = "Time", ylab = "Cumulative Hazard",
-       main = "Cumulative Hazard Function - Static Modelling",
-       xlim = xlim)
-
-  plot(fit_weibull_aft,
-       type = "cumhaz", col = "green", lwd = 2, add = TRUE)
-
-  graphics::legend("topleft",
-                   legend = c("KM", "PH", "AFT"),
-                   col    = c("black", "blue", "green"),
-                   lwd    = 2, bty = "n")
-
-  n_lm <- min(length(landmarks), length(colors))
-  for (j in seq_len(n_lm)) {
-    graphics::abline(v = landmarks[j], col = colors[j], lty = 2, lwd = 1.5)
+simLMPH <- function(seed = NULL, x, Betas, Thetas, LMs, dist = "W") {
+  if (!is.null(seed)) set.seed(seed)
+  
+  x <- as.matrix(x)
+  LMs <- as.numeric(LMs)
+  
+  if (anyNA(LMs) || length(LMs) < 2L) {
+    stop("`LMs` must be a numeric vector of length at least 2.")
   }
-  invisible(NULL)
+  if (any(diff(LMs) <= 0)) {
+    stop("`LMs` must be strictly increasing.")
+  }
+  if (ncol(Betas) != ncol(x)) {
+    stop("`Betas` must have the same number of columns as `x`.")
+  }
+  if (nrow(Thetas) != nrow(Betas)) {
+    stop("`Thetas` and `Betas` must have the same number of rows.")
+  }
+  
+  K <- length(LMs) - 1L
+  if (nrow(Betas) != K) {
+    stop("`LMs` must have length nrow(Betas) + 1.")
+  }
+  if (dist != "W") {
+    stop("Only Weibull implemented.")
+  }
+  
+  n <- nrow(x)
+  tpoints <- as.vector(LMs)
+  out_time <- rep(NA_real_, n)
+  
+  for (k in seq_len(K)) {
+    beta_k  <- Betas[k, , drop = FALSE]
+    theta_k <- Thetas[k, ]
+    linpred <- x %*% t(beta_k)
+    mlambda <- exp(drop(linpred))
+    
+    S0f <- function(t) {
+      stats::pweibull(t, shape = theta_k[1], scale = theta_k[2], lower.tail = FALSE)
+    }
+    quantf <- function(p) {
+      stats::qweibull(p, shape = theta_k[1], scale = theta_k[2])
+    }
+    
+    for (i in seq_len(n)) {
+      S_L <- S0f(tpoints[k])
+      u <- stats::runif(1)
+      p_draw <- max(1 - S_L * u^(1 / mlambda[i]), .Machine$double.eps)
+      t_rel <- quantf(p_draw)
+      
+      if (is.na(out_time[i]) && t_rel <= tpoints[k + 1]) {
+        out_time[i] <- t_rel
+      }
+    }
+  }
+  
+  no_event <- which(is.na(out_time))
+  if (length(no_event) > 0) {
+    beta_k  <- Betas[K, , drop = FALSE]
+    theta_k <- Thetas[K, ]
+    linpred <- x[no_event, , drop = FALSE] %*% t(beta_k)
+    mlambda <- exp(drop(linpred))
+    
+    S0f <- function(t) {
+      stats::pweibull(t, shape = theta_k[1], scale = theta_k[2], lower.tail = FALSE)
+    }
+    quantf <- function(p) {
+      stats::qweibull(p, shape = theta_k[1], scale = theta_k[2])
+    }
+    S_L <- S0f(tpoints[K])
+    
+    for (j in seq_along(no_event)) {
+      u <- stats::runif(1)
+      p_draw <- max(1 - S_L * u^(1 / mlambda[j]), .Machine$double.eps)
+      out_time[no_event[j]] <- quantf(p_draw)
+    }
+  }
+  
+  out_time
+}
+
+
+#' Simulate a full mortgage dataset
+#'
+#' @param n Integer. Number of borrowers.
+#' @param n_iterations Integer. Number of observation landmarks.
+#' @param seed Integer.
+#' @param betas Numeric matrix with n_iterations rows and 4 columns.
+#' @param thetas Numeric matrix with n_iterations rows and 2 columns.
+#' @param credit_start_year Integer.
+#' @param spacing_weeks Integer.
+#'
+#' @return Named list with matrices and dates.
+#' @importFrom lubridate as_date days interval time_length
+#' @importFrom truncnorm rtruncnorm
+#' @export
+simulate_mortgage_data <- function(n                 = 1000L,
+                                   n_iterations      = 7L,
+                                   seed              = 1234L,
+                                   betas             = NULL,
+                                   thetas            = NULL,
+                                   credit_start_year = 2015L,
+                                   spacing_weeks     = 6L) {
+  set.seed(seed)
+  
+  if (is.null(betas)) {
+    betas <- matrix(c(
+      50, 0.90, 0.80, -0.20,
+      51, 0.92, 0.81, -0.21,
+      49, 0.88, 0.79, -0.19,
+      52, 0.95, 0.82, -0.22,
+      48, 0.89, 0.78, -0.18,
+      5, 0.90, 0.80, -0.20,
+      51, 0.91, 0.81, -0.21
+    ), nrow = 7, byrow = TRUE)
+  }
+  
+  if (is.null(thetas)) {
+    thetas <- matrix(c(
+      0.5, 22.25000,
+      0.5, 22.49000,
+      0.5, 22.49756,
+      0.5, 22.73315,
+      0.5, 22.96397,
+      0.5, 23.19023,
+      0.5, 23.41217
+    ), nrow = 7, byrow = TRUE)
+  }
+  
+  if (nrow(betas) != n_iterations || ncol(betas) != 4) {
+    stop("`betas` must have n_iterations rows and 4 columns.")
+  }
+  if (nrow(thetas) != n_iterations || ncol(thetas) != 2) {
+    stop("`thetas` must have n_iterations rows and 2 columns.")
+  }
+  
+  base_date <- lubridate::as_date(paste0(credit_start_year, "-01-01"))
+  credit_start_dates <- base_date + lubridate::days(sample(0:364, n, replace = TRUE))
+  
+  landmarks_list <- lapply(
+    credit_start_dates,
+    generate_landmarks,
+    n_iterations = n_iterations,
+    spacing_weeks = spacing_weeks
+  )
+  
+  landmark_months_list <- Map(
+    landmark_times_in_months,
+    credit_start = credit_start_dates,
+    landmark_dates = landmarks_list
+  )
+  
+  x1_matrix <- matrix(
+    truncnorm::rtruncnorm(n * n_iterations, a = 0.001, b = 0.06, mean = 0.03, sd = 0.01),
+    nrow = n, ncol = n_iterations
+  )
+  x2_matrix <- matrix(
+    truncnorm::rtruncnorm(n * n_iterations, a = 0, b = 0.10, mean = 0.02, sd = 0.015),
+    nrow = n, ncol = n_iterations
+  )
+  x3_matrix <- matrix(
+    truncnorm::rtruncnorm(n * n_iterations, a = 1, b = 6, mean = 3.5, sd = 2),
+    nrow = n, ncol = n_iterations
+  )
+  x4_matrix <- matrix(
+    truncnorm::rtruncnorm(n * n_iterations, a = 20, b = 70, mean = 40, sd = 10),
+    nrow = n, ncol = n_iterations
+  )
+  
+  time_matrix    <- matrix(NA_real_,    nrow = n, ncol = n_iterations)
+  status_matrix  <- matrix(NA_integer_, nrow = n, ncol = n_iterations)
+  obsdate_matrix <- matrix(as.Date(NA), nrow = n, ncol = n_iterations)
+  
+  alive <- rep(TRUE, n)
+  
+  for (i in seq_len(n_iterations)) {
+    message("Simulating iteration ", i, " of ", n_iterations, " ...")
+    
+    covariates_i <- cbind(
+      x1_matrix[, i],
+      x2_matrix[, i],
+      x3_matrix[, i],
+      x4_matrix[, i]
+    )
+    
+    sim_times <- numeric(n)
+    obs_dates <- as.Date(rep(NA, n))
+    
+    for (j in seq_len(n)) {
+      sim_times[j] <- simLMPH(
+        seed   = NULL,
+        x      = matrix(covariates_i[j, ], nrow = 1),
+        Betas  = betas,
+        Thetas = thetas,
+        LMs    = landmark_months_list[[j]],
+        dist   = "W"
+      )
+      
+      obs_dates[j] <- landmarks_list[[j]][i] + sample(0:3, 1)
+    }
+    
+    time_matrix[, i]    <- sim_times
+    obsdate_matrix[, i] <- obs_dates
+    
+    months_elapsed <- as.numeric(
+      lubridate::time_length(
+        lubridate::interval(credit_start_dates, obs_dates),
+        unit = "month"
+      )
+    )
+    
+    status_vals <- as.integer(months_elapsed >= sim_times)
+    status_vals[!alive] <- NA
+    status_matrix[, i] <- status_vals
+    
+    alive <- ifelse(is.na(status_vals), FALSE, status_vals == 0)
+  }
+  
+  list(
+    time_matrix          = time_matrix,
+    status_matrix        = status_matrix,
+    obsdate_matrix       = obsdate_matrix,
+    x1_matrix            = x1_matrix,
+    x2_matrix            = x2_matrix,
+    x3_matrix            = x3_matrix,
+    x4_matrix            = x4_matrix,
+    credit_start_dates   = credit_start_dates,
+    landmarks_list       = landmarks_list,
+    landmark_months_list = landmark_months_list
+  )
+}
+
+
+#' Plot cumulative mortgage defaults
+#'
+#' @param status_matrix Integer matrix.
+#' @param LMs Numeric vector of landmark times.
+#' @return ggplot object.
+#' @importFrom ggplot2 ggplot aes geom_line geom_point labs theme_minimal
+#' @export
+plot_cumulative_deaths <- function(status_matrix,
+                                   LMs = c(60, 62, 64, 66, 68, 70, 72)) {
+  cum_deaths <- cumsum(colSums(status_matrix, na.rm = TRUE))
+  df_cum <- data.frame(time = LMs, cum_deaths = cum_deaths)
+  
+  p <- ggplot2::ggplot(df_cum, ggplot2::aes(x = time, y = cum_deaths)) +
+    ggplot2::geom_line(color = "blue", linewidth = 1) +
+    ggplot2::geom_point(color = "darkblue") +
+    ggplot2::labs(
+      title = "Cumulative Defaults Over Time",
+      x = "Landmark time (months)",
+      y = "Cumulative Defaults"
+    ) +
+    ggplot2::theme_minimal()
+  
+  print(p)
+  invisible(p)
+}
+
+
+#' Plot default times per individual
+#'
+#' @param time_matrix Numeric matrix.
+#' @param status_matrix Integer matrix.
+#' @return ggplot object.
+#' @importFrom ggplot2 ggplot aes geom_rect geom_point labs theme_minimal theme element_text
+#' @export
+plot_death_times <- function(time_matrix, status_matrix) {
+  df_events <- data.frame(
+    individual = rep(seq_len(nrow(status_matrix)), times = ncol(status_matrix)),
+    time       = as.vector(time_matrix),
+    status     = as.vector(status_matrix)
+  )
+  
+  df_deaths <- subset(df_events, status == 1 & !is.na(time))
+  
+  time_min <- floor(min(df_deaths$time, na.rm = TRUE))
+  time_max <- ceiling(max(df_deaths$time, na.rm = TRUE))
+  quarter_starts <- seq(time_min, time_max, by = 3)
+  
+  quarters <- data.frame(
+    start = quarter_starts,
+    end   = quarter_starts + 3
+  )
+  
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_rect(
+      data = quarters,
+      ggplot2::aes(xmin = start, xmax = end, ymin = 0, ymax = max(df_deaths$individual)),
+      fill = "grey90", alpha = 0.3
+    ) +
+    ggplot2::geom_point(
+      data = df_deaths,
+      ggplot2::aes(x = time, y = individual),
+      color = "red", size = 2, alpha = 0.7
+    ) +
+    ggplot2::labs(
+      title = "Default times per individual",
+      subtitle = "Each point represents the time an individual defaulted",
+      x = "Time elapsed since origination",
+      y = "Individual"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 0.5, size = 18, face = "bold"),
+      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 13),
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)
+    )
+  
+  print(p)
+  invisible(p)
+}
+
+
+#' Plot default dates per individual
+#'
+#' @param obsdate_matrix Date matrix.
+#' @param status_matrix Integer matrix.
+#' @param LM_start_date Date.
+#' @param LMs Numeric vector.
+#' @return ggplot object.
+#' @importFrom ggplot2 ggplot aes geom_rect geom_point geom_vline geom_text scale_x_date labs theme_minimal theme element_text guides
+#' @importFrom lubridate floor_date ceiling_date "%m+%" period
+#' @export
+plot_default_dates <- function(obsdate_matrix,
+                               status_matrix,
+                               LM_start_date = as.Date("2015-01-01"),
+                               LMs = c(60, 62, 64, 66, 68, 70, 72)) {
+  df_events <- data.frame(
+    individual = rep(seq_len(nrow(status_matrix)), times = ncol(status_matrix)),
+    date       = as.Date(as.vector(obsdate_matrix)),
+    status     = as.vector(status_matrix)
+  )
+  
+  df_deaths <- subset(df_events, status == 1 & !is.na(date))
+  
+  quarter_starts <- seq(
+    lubridate::floor_date(min(df_deaths$date), unit = "quarter"),
+    lubridate::ceiling_date(max(df_deaths$date), unit = "quarter"),
+    by = "3 months"
+  )
+  
+  quarters <- data.frame(
+    start = quarter_starts,
+    end   = quarter_starts + lubridate::period(3, "month")
+  )
+  
+  labels_df <- data.frame(
+    mean_dates = LM_start_date %m+% lubridate::period(LMs, "month"),
+    label = paste0("t", seq_along(LMs))
+  )
+  
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_rect(
+      data = quarters,
+      ggplot2::aes(xmin = start, xmax = end, ymin = 0, ymax = max(df_deaths$individual)),
+      fill = "grey90", alpha = 0.3
+    ) +
+    ggplot2::geom_point(
+      data = df_deaths,
+      ggplot2::aes(x = date, y = individual),
+      color = "red", size = 2, alpha = 0.7
+    ) +
+    ggplot2::geom_vline(
+      data = labels_df,
+      ggplot2::aes(xintercept = mean_dates, color = label),
+      linetype = "solid",
+      linewidth = 1
+    ) +
+    ggplot2::geom_text(
+      data = labels_df,
+      ggplot2::aes(
+        x = mean_dates,
+        y = max(df_deaths$individual),
+        label = label,
+        color = label
+      ),
+      vjust = 0.2, hjust = 1, size = 5, fontface = "bold"
+    ) +
+    ggplot2::scale_x_date(date_breaks = "3 months", date_labels = "%b %Y") +
+    ggplot2::labs(
+      title = "Default Dates per Individual",
+      subtitle = "Each point represents the date an individual defaulted",
+      x = "Month",
+      y = "Individual"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 0.5, size = 18, face = "bold"),
+      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 13),
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+      legend.position = "none"
+    ) +
+    ggplot2::guides(color = "none")
+  
+  print(p)
+  invisible(p)
 }
