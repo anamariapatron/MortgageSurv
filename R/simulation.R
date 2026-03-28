@@ -62,10 +62,10 @@ landmark_times_in_months <- function(credit_start, landmark_dates) {
 #' @export
 simLMPH <- function(seed = NULL, x, Betas, Thetas, LMs, dist = "W") {
   if (!is.null(seed)) set.seed(seed)
-  
+
   x <- as.matrix(x)
   LMs <- as.numeric(LMs)
-  
+
   if (anyNA(LMs) || length(LMs) < 2L) {
     stop("`LMs` must be a numeric vector of length at least 2.")
   }
@@ -78,7 +78,7 @@ simLMPH <- function(seed = NULL, x, Betas, Thetas, LMs, dist = "W") {
   if (nrow(Thetas) != nrow(Betas)) {
     stop("`Thetas` and `Betas` must have the same number of rows.")
   }
-  
+
   K <- length(LMs) - 1L
   if (nrow(Betas) != K) {
     stop("`LMs` must have length nrow(Betas) + 1.")
@@ -86,43 +86,43 @@ simLMPH <- function(seed = NULL, x, Betas, Thetas, LMs, dist = "W") {
   if (dist != "W") {
     stop("Only Weibull implemented.")
   }
-  
+
   n <- nrow(x)
   tpoints <- as.vector(LMs)
   out_time <- rep(NA_real_, n)
-  
+
   for (k in seq_len(K)) {
     beta_k  <- Betas[k, , drop = FALSE]
     theta_k <- Thetas[k, ]
     linpred <- x %*% t(beta_k)
     mlambda <- exp(drop(linpred))
-    
+
     S0f <- function(t) {
       stats::pweibull(t, shape = theta_k[1], scale = theta_k[2], lower.tail = FALSE)
     }
     quantf <- function(p) {
       stats::qweibull(p, shape = theta_k[1], scale = theta_k[2])
     }
-    
+
     for (i in seq_len(n)) {
       S_L <- S0f(tpoints[k])
       u <- stats::runif(1)
       p_draw <- max(1 - S_L * u^(1 / mlambda[i]), .Machine$double.eps)
       t_rel <- quantf(p_draw)
-      
+
       if (is.na(out_time[i]) && t_rel <= tpoints[k + 1]) {
         out_time[i] <- t_rel
       }
     }
   }
-  
+
   no_event <- which(is.na(out_time))
   if (length(no_event) > 0) {
     beta_k  <- Betas[K, , drop = FALSE]
     theta_k <- Thetas[K, ]
     linpred <- x[no_event, , drop = FALSE] %*% t(beta_k)
     mlambda <- exp(drop(linpred))
-    
+
     S0f <- function(t) {
       stats::pweibull(t, shape = theta_k[1], scale = theta_k[2], lower.tail = FALSE)
     }
@@ -130,14 +130,14 @@ simLMPH <- function(seed = NULL, x, Betas, Thetas, LMs, dist = "W") {
       stats::qweibull(p, shape = theta_k[1], scale = theta_k[2])
     }
     S_L <- S0f(tpoints[K])
-    
+
     for (j in seq_along(no_event)) {
       u <- stats::runif(1)
       p_draw <- max(1 - S_L * u^(1 / mlambda[j]), .Machine$double.eps)
       out_time[no_event[j]] <- quantf(p_draw)
     }
   }
-  
+
   out_time
 }
 
@@ -164,7 +164,7 @@ simulate_mortgage_data <- function(n                 = 1000L,
                                    credit_start_year = 2015L,
                                    spacing_weeks     = 6L) {
   set.seed(seed)
-  
+
   if (is.null(betas)) {
     betas <- matrix(c(
       50, 0.90, 0.80, -0.20,
@@ -172,11 +172,11 @@ simulate_mortgage_data <- function(n                 = 1000L,
       49, 0.88, 0.79, -0.19,
       52, 0.95, 0.82, -0.22,
       48, 0.89, 0.78, -0.18,
-      5, 0.90, 0.80, -0.20,
+       5, 0.90, 0.80, -0.20,
       51, 0.91, 0.81, -0.21
     ), nrow = 7, byrow = TRUE)
   }
-  
+
   if (is.null(thetas)) {
     thetas <- matrix(c(
       0.5, 22.25000,
@@ -188,30 +188,30 @@ simulate_mortgage_data <- function(n                 = 1000L,
       0.5, 23.41217
     ), nrow = 7, byrow = TRUE)
   }
-  
+
   if (nrow(betas) != n_iterations || ncol(betas) != 4) {
     stop("`betas` must have n_iterations rows and 4 columns.")
   }
   if (nrow(thetas) != n_iterations || ncol(thetas) != 2) {
     stop("`thetas` must have n_iterations rows and 2 columns.")
   }
-  
+
   base_date <- lubridate::as_date(paste0(credit_start_year, "-01-01"))
   credit_start_dates <- base_date + lubridate::days(sample(0:364, n, replace = TRUE))
-  
+
   landmarks_list <- lapply(
     credit_start_dates,
     generate_landmarks,
     n_iterations = n_iterations,
     spacing_weeks = spacing_weeks
   )
-  
+
   landmark_months_list <- Map(
     landmark_times_in_months,
     credit_start = credit_start_dates,
     landmark_dates = landmarks_list
   )
-  
+
   x1_matrix <- matrix(
     truncnorm::rtruncnorm(n * n_iterations, a = 0.001, b = 0.06, mean = 0.03, sd = 0.01),
     nrow = n, ncol = n_iterations
@@ -228,26 +228,26 @@ simulate_mortgage_data <- function(n                 = 1000L,
     truncnorm::rtruncnorm(n * n_iterations, a = 20, b = 70, mean = 40, sd = 10),
     nrow = n, ncol = n_iterations
   )
-  
+
   time_matrix    <- matrix(NA_real_,    nrow = n, ncol = n_iterations)
   status_matrix  <- matrix(NA_integer_, nrow = n, ncol = n_iterations)
   obsdate_matrix <- matrix(as.Date(NA), nrow = n, ncol = n_iterations)
-  
+
   alive <- rep(TRUE, n)
-  
+
   for (i in seq_len(n_iterations)) {
     message("Simulating iteration ", i, " of ", n_iterations, " ...")
-    
+
     covariates_i <- cbind(
       x1_matrix[, i],
       x2_matrix[, i],
       x3_matrix[, i],
       x4_matrix[, i]
     )
-    
+
     sim_times <- numeric(n)
     obs_dates <- as.Date(rep(NA, n))
-    
+
     for (j in seq_len(n)) {
       sim_times[j] <- simLMPH(
         seed   = NULL,
@@ -257,27 +257,27 @@ simulate_mortgage_data <- function(n                 = 1000L,
         LMs    = landmark_months_list[[j]],
         dist   = "W"
       )
-      
+
       obs_dates[j] <- landmarks_list[[j]][i] + sample(0:3, 1)
     }
-    
+
     time_matrix[, i]    <- sim_times
     obsdate_matrix[, i] <- obs_dates
-    
+
     months_elapsed <- as.numeric(
       lubridate::time_length(
         lubridate::interval(credit_start_dates, obs_dates),
         unit = "month"
       )
     )
-    
+
     status_vals <- as.integer(months_elapsed >= sim_times)
     status_vals[!alive] <- NA
     status_matrix[, i] <- status_vals
-    
+
     alive <- ifelse(is.na(status_vals), FALSE, status_vals == 0)
   }
-  
+
   list(
     time_matrix          = time_matrix,
     status_matrix        = status_matrix,
@@ -301,10 +301,10 @@ simulate_mortgage_data <- function(n                 = 1000L,
 #' @importFrom ggplot2 ggplot aes geom_line geom_point labs theme_minimal
 #' @export
 plot_cumulative_deaths <- function(status_matrix,
-                                   LMs = c(60, 62, 64, 66, 68, 70, 72)) {
+                                   LMs = c(54, 56, 58, 60, 62, 64, 66)) {
   cum_deaths <- cumsum(colSums(status_matrix, na.rm = TRUE))
   df_cum <- data.frame(time = LMs, cum_deaths = cum_deaths)
-  
+
   p <- ggplot2::ggplot(df_cum, ggplot2::aes(x = time, y = cum_deaths)) +
     ggplot2::geom_line(color = "blue", linewidth = 1) +
     ggplot2::geom_point(color = "darkblue") +
@@ -314,65 +314,10 @@ plot_cumulative_deaths <- function(status_matrix,
       y = "Cumulative Defaults"
     ) +
     ggplot2::theme_minimal()
-  
+
   print(p)
   invisible(p)
 }
-
-
-#' Plot default times per individual
-#'
-#' @param time_matrix Numeric matrix.
-#' @param status_matrix Integer matrix.
-#' @return ggplot object.
-#' @importFrom ggplot2 ggplot aes geom_rect geom_point labs theme_minimal theme element_text
-#' @export
-plot_death_times <- function(time_matrix, status_matrix) {
-  df_events <- data.frame(
-    individual = rep(seq_len(nrow(status_matrix)), times = ncol(status_matrix)),
-    time       = as.vector(time_matrix),
-    status     = as.vector(status_matrix)
-  )
-  
-  df_deaths <- subset(df_events, status == 1 & !is.na(time))
-  
-  time_min <- floor(min(df_deaths$time, na.rm = TRUE))
-  time_max <- ceiling(max(df_deaths$time, na.rm = TRUE))
-  quarter_starts <- seq(time_min, time_max, by = 3)
-  
-  quarters <- data.frame(
-    start = quarter_starts,
-    end   = quarter_starts + 3
-  )
-  
-  p <- ggplot2::ggplot() +
-    ggplot2::geom_rect(
-      data = quarters,
-      ggplot2::aes(xmin = start, xmax = end, ymin = 0, ymax = max(df_deaths$individual)),
-      fill = "grey90", alpha = 0.3
-    ) +
-    ggplot2::geom_point(
-      data = df_deaths,
-      ggplot2::aes(x = time, y = individual),
-      color = "red", size = 2, alpha = 0.7
-    ) +
-    ggplot2::labs(
-      title = "Default times per individual",
-      subtitle = "Each point represents the time an individual defaulted",
-      x = "Time elapsed since origination",
-      y = "Individual"
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(hjust = 0.5, size = 18, face = "bold"),
-      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 13),
-      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)
-    )
-  
-  print(p)
-  invisible(p)
-}
-
 
 #' Plot default dates per individual
 #'
@@ -407,21 +352,34 @@ plot_default_dates <- function(obsdate_matrix,
     end   = quarter_starts + lubridate::period(3, "month")
   )
   
+  mean_dates <- apply(obsdate_matrix, 2, function(col) {
+    as.Date(mean(as.numeric(col)), origin = "1970-01-01")
+  })
+  mean_dates <- as.Date(mean_dates)
+  
   labels_df <- data.frame(
-    mean_dates = LM_start_date %m+% lubridate::period(LMs, "month"),
-    label = paste0("t", seq_along(LMs))
+    mean_dates = mean_dates,
+    label = paste0("t", seq_along(mean_dates))
   )
   
   p <- ggplot2::ggplot() +
     ggplot2::geom_rect(
       data = quarters,
-      ggplot2::aes(xmin = start, xmax = end, ymin = 0, ymax = max(df_deaths$individual)),
-      fill = "grey90", alpha = 0.3
+      ggplot2::aes(
+        xmin = as.Date(start),
+        xmax = as.Date(end),
+        ymin = 0,
+        ymax = max(df_deaths$individual)
+      ),
+      fill = "grey90",
+      alpha = 0.3
     ) +
     ggplot2::geom_point(
       data = df_deaths,
-      ggplot2::aes(x = date, y = individual),
-      color = "red", size = 2, alpha = 0.7
+      ggplot2::aes(x = as.Date(date), y = individual),
+      color = "red",
+      size = 2,
+      alpha = 0.7
     ) +
     ggplot2::geom_vline(
       data = labels_df,
@@ -437,19 +395,24 @@ plot_default_dates <- function(obsdate_matrix,
         label = label,
         color = label
       ),
-      vjust = 0.2, hjust = 1, size = 5, fontface = "bold"
+      vjust = 0.2,
+      hjust = 1,
+      size = 5,
+      fontface = "bold"
     ) +
     ggplot2::scale_x_date(date_breaks = "3 months", date_labels = "%b %Y") +
     ggplot2::labs(
       title = "Default Dates per Individual",
-      subtitle = "Each point represents the date an individual defaulted",
+      subtitle = "Each point shows the date an individual defaulted",
       x = "Month",
       y = "Individual"
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(hjust = 0.5, size = 18, face = "bold"),
-      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 13),
+      plot.title = ggplot2::element_text(hjust = 0.5, size = 20, face = "bold"),
+      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 14),
+      axis.title = ggplot2::element_text(size = 14),
+      axis.text = ggplot2::element_text(size = 12),
       axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
       legend.position = "none"
     ) +
