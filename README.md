@@ -150,28 +150,6 @@ plot_risk_comparison(lm_fit, risk_aft, landmarks,
                      output_pdf = "comparison.pdf")
 ```
 
-### 6 · Pseudo-evaluation metric
-
-```r
-ev <- evaluate_landmark_risk(
-  matrices = list(sim$x1_matrix, sim$x2_matrix,
-                  sim$x3_matrix, sim$x4_matrix),
-  betas    = matrix(c(
-     50,  0.9,  0.8, -0.2,
-     51, 0.92, 0.81, -0.21,
-     49, 0.88, 0.79, -0.19,
-     52, 0.95, 0.82, -0.22,
-     48, 0.89, 0.78, -0.18,
-      5,  0.9,  0.8, -0.2,
-     51, 0.91, 0.81, -0.21
-  ), nrow = 7, byrow = TRUE),
-  thetas   = matrix(c(
-    0.5, 22.25, 0.5, 22.49, 0.5, 22.50,
-    0.5, 22.73, 0.5, 22.96, 0.5, 23.19, 0.5, 23.41
-  ), nrow = 7, byrow = TRUE)
-)
-ev$result
-```
 
 ---
 
